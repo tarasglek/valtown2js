@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A
 import { alias } from "https://esm.town/v/neverstew/alias?v=5";
-import { build, emptyDir } from "https://deno.land/x/dnt/mod.ts";
+import { build, emptyDir } from "https://deno.land/x/dnt@0.40.0/mod.ts";
 
 type ValMeta = { username: string; valName: string; }
 
@@ -37,6 +37,34 @@ function parseValTownURL(url: string): ValMeta {
   throw new Error('Invalid URL format');
 }
 
+/**
+ * Parses a Markdown string to find JSON code blocks with a top-level "package" key.
+ * @param {string} markdown - The Markdown content to parse.
+ * @returns {Object} The first JSON object with a "package" key, or an empty object if none found.
+ */
+function findJsonWithPackage(markdown: string) {
+  // Regular expression to match fenced code blocks that may contain JSON
+  const codeBlockRegex = /```json\n([\s\S]*?)\n```/g;
+  let match;
+
+  // Iterate over all JSON code blocks in the Markdown
+  while ((match = codeBlockRegex.exec(markdown)) !== null) {
+    try {
+      // Attempt to parse the code block content as JSON
+      const jsonObj = JSON.parse(match[1]);
+      // Check if the parsed object has a top-level "package" key
+      if (jsonObj.hasOwnProperty('package')) {
+        return jsonObj; // Return the first matching JSON object
+      }
+    } catch (e) {
+      // If JSON parsing fails, ignore this code block and continue
+    }
+  }
+
+  // Return an empty object if no suitable JSON block is found
+  return {}
+}
+
 if (Deno.args.length !== 1) {
   console.error("Usage: <ValTownURL>");
   Deno.exit(1);
@@ -45,9 +73,9 @@ if (Deno.args.length !== 1) {
 const cfg = {
   ...await tryFn(() => parseValTownURL(Deno.args[0])),
   token: await tryFn(() => {
-    const valtown_token = Deno.env.get("VALTOWN_TOKEN");
+    const valtown_token = Deno.env.get("valtown");
     if (!valtown_token)
-      throw new Error("Please set env var VALTOWN_TOKEN")
+      throw new Error("Please set env var 'valtown' to valtown token")
     return valtown_token;
   }),
 };
@@ -67,36 +95,17 @@ await Deno.writeTextFile(tmpFileName, code);
 // Ensure the npm directory is empty before building
 await emptyDir("./npm");
 
+const package_json = findJsonWithPackage(val.readme||'')
 // Use dnt to build the Node package
 await build({
+  ...package_json,
   entryPoints: [tmpFileName],
   outDir: "./npm",
   packageManager: "pnpm",
   shims: {
     deno: true,
   },
-  mappings: {
-    "https://esm.sh/linkedom": {
-      name: "linkedom",
-      version: "^0.16.8"
-    },
-  },
-  package: {
-    name: val.name,
-    version: "1.0.0",
-    description: "Your package description.",
-    license: "MIT",
-    repository: {
-      type: "git",
-      url: "git+https://github.com/username/repo.git",
-    },
-    bugs: {
-      url: "https://github.com/username/repo/issues",
-    },
-    devDependencies: {
-      "@types/turndown": "^5.0.4",
-    },
-  },
+  
 });
 
 console.log("Build successful. Node package is in ./npm");
