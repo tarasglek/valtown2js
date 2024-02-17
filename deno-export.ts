@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run -A
+#!/usr/bin/env -S deno run --allow-env --allow-read --allow-net --allow-write --allow-run
 import { alias } from "https://esm.town/v/neverstew/alias?v=5";
 import { build, emptyDir } from "https://deno.land/x/dnt@0.40.0/mod.ts";
 
@@ -93,22 +93,22 @@ const tmpFileName = `${tmpDir}/${val.name}.ts`;
 await Deno.writeTextFile(tmpFileName, code);
 
 // Ensure the npm directory is empty before building
-await emptyDir("./npm");
+const distDir = "./npm"
+await emptyDir(distDir);
 
 const package_json = findJsonWithPackage(val.readme||'')
 // Use dnt to build the Node package
 await build({
   ...package_json,
   entryPoints: [tmpFileName],
-  outDir: "./npm",
+  outDir: distDir,
   packageManager: "pnpm",
   shims: {
     deno: true,
   },
-  
 });
 
-console.log("Build successful. Node package is in ./npm");
+console.log(`Build successful. Node package is in ${distDir}`);
 
 // Cleanup: Remove the temporary directory
 await Deno.remove(tmpDir, { recursive: true }).catch((error) => {
