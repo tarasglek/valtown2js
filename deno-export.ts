@@ -1,11 +1,60 @@
+#!/usr/bin/env -S deno run -A
+import { alias } from "https://esm.town/v/neverstew/alias?v=5";
 import { build, emptyDir } from "https://deno.land/x/dnt/mod.ts";
-import { alias } from "https://esm.town/v/neverstew/alias";
-export const val = await alias({
-  username: "taras",
-  valName: "scrape",
-  // for private vals, pass your val town api token
-  token: Deno.env.get("valtown"),
-});
+
+type ValMeta = { username: string; valName: string; }
+
+/**
+ * Attempts to execute a function (synchronous or asynchronous), captures any
+ * thrown error, and allows for immediate error handling through an optional
+ * provided error handler function. If no error handler is provided, logs the
+ * error and exits.
+ * @param fn The function to execute. Can be async.
+ * @param errorHandler (Optional) A function to handle errors, if any.
+ * @returns The result of the function if successful, or null if an error occurred.
+ */
+export async function tryFn<T>(
+  fn: () => Promise<T> | T,
+  errorHandler: (error: Error) => void = defaultErrorHandler
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    errorHandler(error as Error);
+    Deno.exit(1);
+  }
+}
+
+function defaultErrorHandler(error: Error): void {
+  console.error(`Error: ${error.message}`);
+}
+
+function parseValTownURL(url: string): ValMeta {
+  const parts = new URL(url).pathname.split('/').filter(p => p);
+  if (parts.length === 3 && parts[0] === 'v') {
+    return { username: parts[1], valName: parts[2] };
+  }
+  throw new Error('Invalid URL format');
+}
+
+if (Deno.args.length !== 1) {
+  console.error("Usage: <ValTownURL>");
+  Deno.exit(1);
+}
+
+const cfg = {
+  ...await tryFn(() => parseValTownURL(Deno.args[0])),
+  token: await tryFn(() => {
+    const valtown_token = Deno.env.get("VALTOWN_TOKEN");
+    if (!valtown_token)
+      throw new Error("Please set env var VALTOWN_TOKEN")
+    return valtown_token;
+  }),
+};
+console.log(cfg);
+const val = await tryFn(async () => await alias(
+  cfg
+));
 
 console.log(val);
 const code = val.code;
