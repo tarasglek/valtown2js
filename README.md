@@ -8,7 +8,7 @@ val.town is a platform that allows users to write and share code snippets. Howev
 To use this utility, follow these steps:
 1. Create a markdown JSON code block with the "package" information. You can refer to the example provided at [https://www.val.town/v/taras/scrape2md](https://www.val.town/v/taras/scrape2md).
    <img width="959" alt="image" src="https://github.com/tarasglek/valtown2js/assets/857083/36eda45a-a800-49d1-97c3-50a97c5eda0f">
-   This is in the sane format as required for the dnt build function.
+   The json is used to configure the dnt export, see [dnt BuildOptions](https://deno.land/x/dnt@0.40.0/mod.ts?s=BuildOptions).
 3. Run the utility using the following command:
    ```bash
    ./deno-export.ts https://www.val.town/v/taras/scrape2md
